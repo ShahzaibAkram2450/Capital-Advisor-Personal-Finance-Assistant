@@ -102,6 +102,19 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoadingAuth(false);
+      
+      if (currentUser) {
+        // Automatically ensure the root user document exists in firestore so the collection shows up immediately with real docs
+        setDoc(doc(db, "users", currentUser.uid), {
+          uid: currentUser.uid,
+          email: currentUser.email || "",
+          displayName: currentUser.displayName || "",
+          photoURL: currentUser.photoURL || "",
+          lastActive: new Date().toISOString()
+        }, { merge: true }).catch((err) => {
+          console.error("Error writing root user document on auth change:", err);
+        });
+      }
     });
     return unsubscribe;
   }, []);
@@ -249,6 +262,16 @@ export default function App() {
     const batch = writeBatch(db);
 
     try {
+      // 0. Ensure root user document exists in batch
+      const userRef = doc(db, "users", uid);
+      batch.set(userRef, {
+        uid: uid,
+        email: user.email || "",
+        displayName: user.displayName || "",
+        photoURL: user.photoURL || "",
+        lastActive: new Date().toISOString()
+      }, { merge: true });
+
       // 1. Commit simulation transactions
       mockTransactions.forEach((tx) => {
         const txRef = doc(db, "users", uid, "transactions", tx.id);

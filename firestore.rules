@@ -28,6 +28,13 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // Validation Blueprint for Root Users
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.lastActive is string && data.lastActive.size() <= 64;
+    }
+
     // Validation Blueprint for User Profiles
     function isValidUserProfile(data) {
       return data.userId is string && data.userId.size() <= 128 &&
@@ -63,6 +70,11 @@ service cloud.firestore {
 
     // 4. Matches for each collection
     match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().uid == existing().uid;
+      allow delete: if isOwner(userId);
       
       match /profiles/info {
         allow read: if isOwner(userId);

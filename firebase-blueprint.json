@@ -1,5 +1,18 @@
 {
   "entities": {
+    "User": {
+      "title": "Root User Document",
+      "description": "Root document representing a user, making the user record queryable and explicitly visible in the users collection.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique identifier." },
+        "email": { "type": "string", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "photoURL": { "type": "string", "description": "URL to the user's avatar." },
+        "lastActive": { "type": "string", "format": "date-time", "description": "Last activity timestamp." }
+      },
+      "required": ["uid", "email", "lastActive"]
+    },
     "UserProfile": {
       "title": "User Profile",
       "description": "Stores user settings, preferences, and custom context notes.",
@@ -56,6 +69,10 @@
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Root user resource representing basic account data."
+    },
     "/users/{userId}/profiles/info": {
       "schema": "UserProfile",
       "description": "Public/private user context profile."
