@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user settings, preferences, and custom context notes.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The Firebase Auth UID of the user." },
+        "customContext": { "type": "string", "description": "User preferences and rules (e.g., 'paid on 1st')." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp." }
+      },
+      "required": ["userId", "customContext", "updatedAt"]
+    },
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "Represents a single financial transaction (income or expense) owned by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique transaction ID." },
+        "userId": { "type": "string", "description": "The UID of the owner." },
+        "date": { "type": "string", "format": "date", "description": "Date of transaction (YYYY-MM-DD)." },
+        "amount": { "type": "number", "description": "Amount in dollars (positive for expenses, negative for income)." },
+        "merchant": { "type": "string", "description": "Merchant name." },
+        "category": { "type": "string", "description": "Expense category (e.g., Groceries, Rent, Entertainment)." },
+        "source": { "type": "string", "description": "Data source (e.g., CSV, Plaid, Receipt)." },
+        "rawText": { "type": "string", "description": "Optional raw text if extracted from a receipt." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when transaction was recorded." }
+      },
+      "required": ["id", "userId", "date", "amount", "merchant", "category", "source", "createdAt"]
+    },
+    "Budget": {
+      "title": "Category Budget",
+      "description": "Defines a budget spending limit for a specific category.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique budget ID." },
+        "userId": { "type": "string", "description": "The UID of the owner." },
+        "category": { "type": "string", "description": "The category (e.g., 'Groceries', 'All' for total budget)." },
+        "limit": { "type": "number", "description": "The budget limit in dollars." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp." }
+      },
+      "required": ["id", "userId", "category", "limit", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "Assistant Chat Message",
+      "description": "A single message in the conversational assistant's logs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID." },
+        "userId": { "type": "string", "description": "The owner's UID." },
+        "role": { "type": "string", "enum": ["user", "model"], "description": "The sender's identity." },
+        "content": { "type": "string", "description": "The text content of the message." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the message was sent." }
+      },
+      "required": ["id", "userId", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/profiles/info": {
+      "schema": "UserProfile",
+      "description": "Public/private user context profile."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Collection of private financial transactions."
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "Collection of private budget limits."
+    },
+    "/users/{userId}/chats/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Collection of chat history messages."
+    }
+  }
+}

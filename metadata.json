@@ -1,0 +1,6 @@
+{
+  "name": "Personal Finance Assistant",
+  "description": "A smart companion to track budgets, analyze spending, manage subscriptions, scan receipts, and ask questions about your money in plain language.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

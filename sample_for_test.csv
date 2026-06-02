@@ -1,0 +1,9 @@
+Date,Merchant,Amount,Category,Source
+2026-05-15,Uber Trip Convenience,22.80,Transport & Travel,CSV
+2026-05-24,Trader Joe's Supermarket,64.92,Groceries,CSV
+2026-05-28,City Transit Subway,35.00,Transport & Travel,CSV
+2026-05-30,Target Retail Stores,112.50,Shopping & Retail,CSV
+2026-06-01,Apartment Rent Group,1450.00,Rent & Housing,CSV
+2026-06-02,Local GYM membership,45.00,Health & Fitness,CSV
+2026-06-02,Starbucks Coffee Shop,12.45,Dining & Cafes,CSV
+2026-06-03,Direct Employer Salary,-3500.00,Income,CSV

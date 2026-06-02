@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net (default deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitive Definitions & Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprint for User Profiles
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.customContext is string && data.customContext.size() <= 5000;
+    }
+
+    // Validation Blueprint for Transactions
+    function isValidTransaction(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.date is string && data.date.size() <= 32 &&
+             data.amount is number &&
+             data.merchant is string && data.merchant.size() <= 256 &&
+             data.category is string && data.category.size() <= 128 &&
+             data.source is string && data.source.size() <= 128;
+    }
+
+    // Validation Blueprint for Budgets
+    function isValidBudget(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.category is string && data.category.size() <= 128 &&
+             data.limit is number && data.limit >= 0;
+    }
+
+    // Validation Blueprint for Chats
+    function isValidChatMessage(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.role is string && (data.role == 'user' || data.role == 'model') &&
+             data.content is string && data.content.size() <= 100000;
+    }
+
+    // 4. Matches for each collection
+    match /users/{userId} {
+      
+      match /profiles/info {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidUserProfile(incoming());
+        allow update: if isOwner(userId) && isValidUserProfile(incoming()) && 
+                      incoming().userId == existing().userId;
+        allow delete: if isOwner(userId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(transactionId) && isValidTransaction(incoming());
+        allow update: if isOwner(userId) && isValidId(transactionId) && isValidTransaction(incoming()) &&
+                      incoming().userId == existing().userId && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(transactionId);
+      }
+
+      match /budgets/{budgetId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(budgetId) && isValidBudget(incoming());
+        allow update: if isOwner(userId) && isValidId(budgetId) && isValidBudget(incoming()) &&
+                      incoming().userId == existing().userId && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(budgetId);
+      }
+
+      match /chats/{messageId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(messageId) && isValidChatMessage(incoming());
+        allow update: if isOwner(userId) && isValidId(messageId) && isValidChatMessage(incoming()) &&
+                      incoming().userId == existing().userId && incoming().id == existing().id;
+        allow delete: if isOwner(userId) && isValidId(messageId);
+      }
+    }
+  }
+}
