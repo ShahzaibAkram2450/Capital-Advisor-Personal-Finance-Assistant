@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from "firebase/auth";
 import { 
   collection, 
   doc, 
@@ -78,6 +78,13 @@ export default function App() {
   const [txToDelete, setTxToDelete] = useState<string | null>(null);
   const [showClearDbConfirm, setShowClearDbConfirm] = useState(false);
   const [customAlert, setCustomAlert] = useState<string | null>(null);
+
+  // Sign up/Login custom state managers
+  const [authTab, setAuthTab] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   // Assistant queries input
   const [chatInput, setChatInput] = useState("");
@@ -175,9 +182,62 @@ export default function App() {
   // Auth logins trigger
   async function handleLogin() {
     try {
+      setAuthError(null);
       await loginWithGoogle();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setAuthError(err?.message || "Google Sign-In failed.");
+    }
+  }
+
+  // Brand-new email authentication (sign-up & sign-in matching perfectly)
+  async function handleEmailAuth(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError(null);
+    if (!email || !password) {
+      setAuthError("Please fill out both your email and password.");
+      return;
+    }
+    if (password.length < 6) {
+      setAuthError("Password must be at least 6 characters.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      if (authTab === "signup") {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err: any) {
+      console.error(err);
+      let localizedError = err?.message || "Authentication attempt failed. Please check your credentials.";
+      if (err?.code === "auth/email-already-in-use") {
+        localizedError = "This email is already linked to another account.";
+      } else if (err?.code === "auth/invalid-email") {
+        localizedError = "Invalid email format.";
+      } else if (err?.code === "auth/weak-password") {
+        localizedError = "The chosen password is too weak.";
+      } else if (err?.code === "auth/invalid-credential" || err?.code === "auth/wrong-password" || err?.code === "auth/user-not-found") {
+        localizedError = "Incorrect email or password credential.";
+      }
+      setAuthError(localizedError);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  // Instant sandbox bypass using Firebase Anonymous Authentication for full persistence
+  async function handleGuestLogin() {
+    setAuthError(null);
+    setAuthLoading(true);
+    try {
+      await signInAnonymously(auth);
+    } catch (err: any) {
+      console.error(err);
+      setAuthError(err?.message || "Could not instantiate an anonymous sandbox session.");
+    } finally {
+      setAuthLoading(false);
     }
   }
 
@@ -545,37 +605,37 @@ export default function App() {
       <div id="guest-splash" className="min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans overflow-x-hidden">
         
         {/* Left column: Visual Presentation & App Demonstration mockup (60% width on large screens) */}
-        <div className="hidden lg:flex lg:w-[58%] xl:w-[62%] bg-slate-950 text-slate-100 flex-col justify-between p-12 xl:p-16 relative overflow-hidden">
-          {/* Neon background light grids */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_25%,rgba(59,130,246,0.18),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_75%,rgba(20,184,166,0.14),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="hidden lg:flex lg:w-[58%] xl:w-[62%] bg-slate-50 text-slate-800 flex-col justify-between p-12 xl:p-16 relative overflow-hidden border-r border-slate-250/70">
+          {/* Ambient light grids matching light dashboard */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_25%,rgba(59,130,246,0.04),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_75%,rgba(20,184,166,0.03),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.012)_1px,transparent_1px)] bg-[size:32px_32px]" />
           
           {/* Header Brand Badge */}
           <div className="flex items-center gap-3 relative z-10">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/10">
               <Wallet className="w-5 h-5 stroke-[2]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white tracking-tight font-display">Capital Advisor</span>
-                <span className="px-1.5 py-0.5 rounded text-[8px] bg-blue-500/10 text-blue-400 border border-blue-500/25 font-extrabold tracking-widest font-display">PRO</span>
+                <span className="text-sm font-bold text-slate-900 tracking-tight font-display">Capital Advisor</span>
+                <span className="px-1.5 py-0.5 rounded text-[8px] bg-blue-550/10 text-blue-650 border border-blue-500/15 font-extrabold tracking-widest font-display">PRO</span>
               </div>
-              <span className="text-[9px] text-slate-500 block tracking-wider font-mono">SECURE FIRESTORE ENGINE</span>
+              <span className="text-[9px] text-slate-400 block tracking-wider font-mono">SECURE FIRESTORE ENGINE</span>
             </div>
           </div>
 
           {/* Core Feature Demonstration Deck */}
           <div className="space-y-12 my-auto max-w-xl relative z-10">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-1.5 bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-display border border-blue-500/20">
+              <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-display border border-blue-100">
                 <Sparkles className="w-3.5 h-3.5" />
                 Gemini-Powered Intelligence
               </div>
-              <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight font-display leading-[1.15] text-white">
+              <h2 className="text-3xl xl:text-4xl font-extrabold tracking-tight font-display leading-[1.15] text-slate-900">
                 Understand where your capital flows.
               </h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-lg">
+              <p className="text-sm text-slate-500 leading-relaxed max-w-lg">
                 Query, cross-examine, and audit transactions in plain English. Analyze paper receipts instantly using visual AI, set smart budgets, and find hidden subscriptions before they renew.
               </p>
             </div>
@@ -584,25 +644,25 @@ export default function App() {
             <div className="space-y-4 pt-4">
               
               {/* Anomaly Flag Mockup */}
-              <div className="dark-glass-panel rounded-2xl p-4 flex items-start gap-4 shadow-xl border-slate-800/80 animate-pulse-gentle [animation-duration:6s]">
-                <div className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center shrink-0">
+              <div className="bg-white border border-slate-150 rounded-2xl p-4 flex items-start gap-4 shadow-sm animate-pulse-gentle [animation-duration:6s]">
+                <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-[10px] uppercase font-bold text-rose-400 tracking-wider font-display">Anomalous Activity Flagged</p>
-                  <p className="text-xs font-semibold text-slate-200">Duplicate billing detected at &quot;Spotify Premium&quot;</p>
+                  <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider font-display">Anomalous Activity Flagged</p>
+                  <p className="text-xs font-semibold text-slate-800">Duplicate billing detected at &quot;Spotify Premium&quot;</p>
                   <p className="text-[10px] text-slate-400 font-mono">Charges of $14.99 recorded twice within 48 hours.</p>
                 </div>
               </div>
 
               {/* Chat Interaction Mockup */}
-              <div className="dark-glass-panel rounded-2xl p-4 flex items-start gap-4 shadow-xl border-slate-800/80 translate-x-4">
-                <div className="w-10 h-10 bg-teal-500/10 text-teal-400 rounded-xl flex items-center justify-center shrink-0">
+              <div className="bg-white border border-slate-150 rounded-2xl p-4 flex items-start gap-4 shadow-sm translate-x-4">
+                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
                   <MessageSquare className="w-5 h-5" />
                 </div>
                 <div className="space-y-1.5 flex-1">
-                  <p className="text-[10px] uppercase font-bold text-teal-400 tracking-wider font-display">Capital Advisor Assistant</p>
-                  <p className="text-xs italic text-slate-300 leading-relaxed font-sans font-medium">
+                  <p className="text-[10px] uppercase font-bold text-emerald-600 tracking-wider font-display">Capital Advisor Assistant</p>
+                  <p className="text-xs italic text-slate-600 leading-relaxed font-sans font-medium">
                     &quot;Your grocery spending is up 12% compared to last May, mainly driven by larger single visits. However, your subscription bills decreased by $45.&quot;
                   </p>
                 </div>
@@ -611,10 +671,10 @@ export default function App() {
           </div>
 
           {/* Elegant Footer Details */}
-          <div className="flex justify-between items-center text-slate-500 text-[10px] uppercase font-bold tracking-widest font-mono relative z-10 pt-4 border-t border-slate-900">
+          <div className="flex justify-between items-center text-slate-400 text-[10px] uppercase font-bold tracking-widest font-mono relative z-10 pt-4 border-t border-slate-200/60">
             <span>© 2026 CAPITAL ADVISOR</span>
             <span className="flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-blue-500" />
+              <Shield className="w-3.5 h-3.5 text-blue-550" />
               AES-256 FIREBASE REPLICATED
             </span>
           </div>
@@ -635,75 +695,49 @@ export default function App() {
             <span className="px-2 py-0.5 rounded text-[8px] bg-blue-50 text-blue-600 border border-blue-100 font-bold uppercase tracking-wider">PRO</span>
           </div>
 
-          <div className="my-auto max-w-md w-full mx-auto space-y-8">
-            {/* Action Card Header */}
-            <div className="space-y-3">
+          <div className="my-auto max-w-md w-full mx-auto space-y-6">
+            {/* Header branding */}
+            <div className="space-y-2 text-center lg:text-left">
               <div className="hidden lg:inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-display border border-blue-100">
                 <Shield className="w-3.5 h-3.5" />
                 Authorized Private Gateway
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-display">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-display">
                 Access your secure vault
               </h1>
               <p className="text-xs text-slate-400 leading-relaxed font-sans">
-                Sign in using your Google identity to deploy your local instance. All financial statements, budgets and chat guidelines are encrypted and private.
+                Deploy and access your personal ledger. All calculations, budget tags and statements are securely partitioned.
               </p>
             </div>
 
-            {/* Custom Interactive Capabilities List */}
-            <div className="space-y-4">
-              
-              <div className="flex gap-3 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100 items-start">
-                <div className="w-8 h-8 rounded-xl bg-blue-100/60 text-blue-600 flex items-center justify-center shrink-0 font-bold text-xs">
-                  01
+            {/* Google Identity Authorization Panel */}
+            <div className="space-y-3.5 max-w-sm mx-auto pt-4">
+              {authError && (
+                <div className="bg-rose-50 text-rose-600 text-[10px] p-3 rounded-xl border border-rose-100 flex items-start gap-2 animate-fade-in">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 stroke-[2] mt-0.5" />
+                  <span className="leading-tight font-medium">{authError}</span>
                 </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-bold text-slate-800 font-display">OCR Receipt Scanner</h4>
-                  <p className="text-[10px] text-slate-400">Classify merchant tags and parse numbers direct from photos.</p>
-                </div>
-              </div>
+              )}
 
-              <div className="flex gap-3 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100 items-start">
-                <div className="w-8 h-8 rounded-xl bg-teal-100/60 text-teal-600 flex items-center justify-center shrink-0 font-bold text-xs">
-                  02
-                </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-bold text-slate-800 font-display">Flexible CSV Drag-parse</h4>
-                  <p className="text-[10px] text-slate-400 font-sans">Import statements instantly. Custom logic catches duplicates automatically.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 bg-slate-50/50 p-3.5 rounded-2xl border border-slate-100 items-start">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100/60 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-xs">
-                  03
-                </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-xs font-bold text-slate-800 font-display">Cognitive Context Memo</h4>
-                  <p className="text-[10px] text-slate-400">Instruct Gemini on custom paydays, billing cycles, or exclusions.</p>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Google Login Trigger CTA */}
-            <div className="space-y-3.5 pt-2">
+              {/* Continue with Google Account */}
               <button
+                type="button"
                 onClick={handleLogin}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-extrabold flex items-center justify-center gap-3 py-3 px-4 rounded-xl text-xs shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer"
+                className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-extrabold flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl text-xs shadow-sm hover:shadow-md transition-all duration-150 cursor-pointer"
               >
-                {/* Visual custom polished Google Icon */}
+                {/* Visual custom polished White Google Icon */}
                 <svg className="w-4 h-4 shrink-0 fill-current" viewBox="0 0 24 24" width="16" height="16">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#ffffff" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#ffffff" opacity="0.9" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#ffffff" opacity="0.8" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#ffffff" opacity="0.9" />
                 </svg>
                 Continue with Google Account
               </button>
               
-              <div className="flex items-center gap-2 text-[9px] text-slate-400 font-semibold justify-center">
-                <span>REPLICATED VIA CLOUD FIRESTORE</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300" />
+              <div className="flex items-center gap-1.5 text-[8px] text-slate-350 font-bold justify-center tracking-wider font-mono pt-1">
+                <span>REPLICATED CLOUD STATUS</span>
+                <span className="w-1 h-1 rounded-full bg-blue-400" />
                 <span>SECURED AES-256</span>
               </div>
             </div>
